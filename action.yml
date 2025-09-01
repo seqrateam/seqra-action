@@ -1,0 +1,90 @@
+name: "Seqra code analysis"
+description: "Run seqra analysis"
+
+inputs:
+  project-root:
+    description: 'Relative path under $GITHUB_WORKSPACE to the root of the analyzed project'
+    default: '.'
+  upload-sarif:
+    description: 'Should seqra-action upload sarif to GitHub Code Security'
+    default: 'false'
+  seqra-version:
+    description: 'Tag of seqra release'
+    default: 'v1.0.0'
+  rules-path:
+    description: 'Relative path under $GITHUB_WORKSPACE to rules. If set rules-repository not used'
+    default: ''
+  token:
+    description: 'Token for download rules from private repository'
+    required: false
+    default: ${{ github.token }}
+  artifact-name:
+    description: 'Name of uploaded artifact'
+    default: 'sarif'
+  timeout:
+    description: 'Scan timeout'
+    default: '15m'
+    
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set globals
+      id: globals
+      shell: bash
+      run: |
+        UUID=$(echo ${{ inputs.artifact-name }} | sha1sum | awk '{print $1}')
+        SEQRA_ARTIFACTS=seqra-artifacts/$UUID
+        echo "SEQRA_ARTIFACTS=$SEQRA_ARTIFACTS" >> "${GITHUB_OUTPUT}"
+        echo "SEQRA_BIN=$GITHUB_WORKSPACE/$SEQRA_ARTIFACTS/seqra" >> "${GITHUB_OUTPUT}"
+        echo "SEQRA_PROJECT=$RUNNER_TEMP/$SEQRA_ARTIFACTS/project" >> "${GITHUB_OUTPUT}"
+        echo "SEQRA_SARIF=$RUNNER_TEMP/$SEQRA_ARTIFACTS/seqra.sarif" >> "${GITHUB_OUTPUT}"
+        echo "FLAGS=$FLAGS" >> "${GITHUB_OUTPUT}"
+
+    - name: Copy rules to 
+      if: ${{ inputs.rules-path != '' }}
+      shell: bash
+      run: |
+        cp -R ${{ inputs.rules-path }} ${{ steps.globals.outputs.SEQRA_ARTIFACTS }}/rules
+
+    - name: Download seqra
+      uses: robinraju/release-downloader@v1
+      with:
+        repository: 'seqrateam/seqra'
+        tag: ${{ inputs.seqra-version }}
+        fileName: 'seqra_linux_amd64.tar.gz'
+        out-file-path: ${{ steps.globals.outputs.SEQRA_ARTIFACTS }}
+        extract: true
+        token: ${{ inputs.token }}
+
+    - name: Compile project
+      shell: bash
+      run: |
+           ${{ steps.globals.outputs.SEQRA_BIN }} --quiet --github-token ${{ inputs.token }} compile \
+             --output ${{ steps.globals.outputs.SEQRA_PROJECT }} ${{ inputs.project-root }}
+
+    - name: Run analysis
+      shell: bash
+      run: |
+           cmd="${{ steps.globals.outputs.SEQRA_BIN }} --quiet --github-token ${{ inputs.token }} scan"
+
+           if [ -n "${{ inputs.rules-path }}" ]; then
+             cmd="$cmd --ruleset ${{ steps.globals.outputs.SEQRA_ARTIFACTS }}/rules"
+           fi
+
+           cmd="$cmd --timeout ${{ inputs.timeout }}"
+           cmd="$cmd --output ${{ steps.globals.outputs.SEQRA_SARIF }} ${{ steps.globals.outputs.SEQRA_PROJECT }}"
+
+           eval "$cmd"
+
+    - name: Upload sarif artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: ${{ steps.globals.outputs.SEQRA_SARIF }}
+
+    - name: Upload sarif to github code security
+      if: ${{ inputs.upload-sarif == 'true' }}
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: ${{ steps.globals.outputs.SEQRA_SARIF }}
