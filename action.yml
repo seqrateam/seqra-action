@@ -10,7 +10,7 @@ inputs:
     default: 'false'
   seqra-version:
     description: 'Tag of seqra release'
-    default: 'v1.0.0'
+    default: 'v1.0.1'
   rules-path:
     description: 'Relative path under $GITHUB_WORKSPACE to rules. If set rules-repository not used'
     default: ''
