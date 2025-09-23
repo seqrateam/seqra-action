@@ -12,7 +12,7 @@ permissions: write-all
 
 jobs:
   pr-title:
-    runs-on: [self-hosted, test]
+    runs-on: ubuntu-latest
     container: ubuntu:latest
 
     name: 'Title'

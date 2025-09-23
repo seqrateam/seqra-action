@@ -84,7 +84,7 @@ jobs:
             upload-sarif: 'false'
 
             # Tag of seqra release
-            seqra-version: 'v1.0.1'
+            seqra-version: 'v1.0.3'
 
             # Relative path under $GITHUB_WORKSPACE to your rules
             # By default it is empty, so seqra wil use builtin rules

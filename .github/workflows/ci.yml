@@ -21,7 +21,7 @@ jobs:
           - repo: WebGoat/WebGoat
             sha: 06c0be257f3ec5b02521368b030018816ac94090
 
-    runs-on: [self-hosted, test]
+    runs-on: ubuntu-latest
     container: buildpack-deps:jammy-scm
     steps:
       - uses: actions/checkout@v4

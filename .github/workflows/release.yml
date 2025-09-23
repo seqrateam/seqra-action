@@ -9,7 +9,7 @@ permissions: write-all
 
 jobs:
   release:
-    runs-on: [self-hosted, test]
+    runs-on: ubuntu-latest
     container: buildpack-deps:jammy-scm
     steps:
       - name: "Install and Configure applications"
